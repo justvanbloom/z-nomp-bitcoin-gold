@@ -1187,7 +1187,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                             logger.warning(logSystem, logComponent, rpccallTracking);
                             logger.error(logSystem, logComponent, 'Error sending payments ' + JSON.stringify(result.error));
                             // payment failed, prevent updates to redis
-                            callback(true);
+                            callback(null); //commented to stop incorrect redis data
                             return;
                         }
                         else if (result.error && result.error.message != null) {
@@ -1212,7 +1212,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                             if (result.response) {
                                 txid = result.response;
                             }
-                            if (txid != null) {
+                            if (txid !== null) {
 
                                 // it worked, congrats on your pools payout ;)
                                 logger.special(logSystem, logComponent, 'Sent ' + satoshisToCoins(totalSent)
@@ -1225,7 +1225,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                                 }
 
                                 // save payments data to redis
-                                var paymentBlocks = rounds.filter(function(r){ return r.category == 'generate'; }).map(function(r){
+                                var paymentBlocks = rounds.filter(function(r){ return r.category === 'generate'; }).map(function(r){
                                     return parseInt(r.height);
                                 });
                                 
@@ -1299,7 +1299,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                 
                 var moveSharesToCurrent = function(r){
                     var workerShares = r.workerShares;
-                    if (workerShares != null) {
+                    if (workerShares !== null) {
                         logger.warning(logSystem, logComponent, 'Moving shares from orphaned block '+r.height+' to current round.');
                         Object.keys(workerShares).forEach(function(worker){
                             orphanMergeCommands.push(['hincrby', coin + ':shares:roundCurrent', worker, workerShares[worker]]);
@@ -1399,14 +1399,16 @@ function SetupForPool(logger, poolOptions, setupFinished){
 
 
     var getProperAddress = function(address){
-        if (address.length >= 40){
-            logger.warning(logSystem, logComponent, 'Invalid address '+address+', convert to address '+(poolOptions.invalidAddress || poolOptions.address));
-            return (poolOptions.invalidAddress || poolOptions.address);
+        if (address.length < 25 || address.length > 34) {
+            return (poolOptions.invalidAddress || (poolOptions.testnet === true ? "mnEMR3XsWYENNNe1xsXjxbocMAy9jDrQ8d" : "GZRBr1w9iSikn3Wy9HPnvhq2angqJzZarC"));
         }
-        if (address.length <= 30) {
-            logger.warning(logSystem, logComponent, 'Invalid address '+address+', convert to address '+(poolOptions.invalidAddress || poolOptions.address));
-            return (poolOptions.invalidAddress || poolOptions.address);
-        }
+        if (poolOptions.testnet === true && address[0] !== 'm' && address[0] !== 'n' && address[0] !== '2') {
+             return (poolOptions.invalidAddress || "mnEMR3XsWYENNNe1xsXjxbocMAy9jDrQ8d");
+         }
+ 
+         if (poolOptions.testnet === false && address[0] !== 'G' && address[0] !== 'A') {
+             return (poolOptions.invalidAddress || "GZRBr1w9iSikn3Wy9HPnvhq2angqJzZarC");
+          }
         return address;
     };
 
